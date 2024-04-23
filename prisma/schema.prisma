@@ -1,0 +1,80 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Definisikan model User
+model users {
+  id_user    Int      @id @default(autoincrement())
+  username   String
+  password   String   @db.Text
+  created_at DateTime @default(now())
+}
+
+// Definisikan model User
+model record {
+  id_record  Int      @id @default(autoincrement())
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now())
+}
+
+// Definisikan model Laboratorium
+model room {
+  id_room          Int               @id @default(autoincrement())
+  room_code        String
+  position         String
+  room_name        String
+  nama_ruangan     String
+  created_at       DateTime          @default(now())
+  // One-to-One relationship dengan model lab_information
+  room_information room_information?
+  // One-to-Many relationship dengan model lab_student
+  room_student     room_student[]
+  // One-to-Many relationship dengan model lab_lecture
+  room_lecture     room_lecture[]
+}
+
+// Definisikan model lab_lecture
+model room_lecture {
+  id_lecture       Int               @id @default(autoincrement())
+  room_id          Int               @unique
+  name_lecture     String
+  nim              Int
+  major            String
+  created_at       DateTime          @default(now())
+  room             room              @relation(fields: [room_id], references: [id_room])
+  // One-to-One relationship dengan model lab_information
+  room_information room_information?
+}
+
+// Definisikan model lab_information
+model room_information {
+  id_inform        Int          @id @default(autoincrement())
+  room_id          Int          @unique
+  room_head        Int          @unique
+  room_type        String
+  information_room String
+  research_list    String
+  created_at       DateTime     @default(now())
+  room             room         @relation(fields: [room_id], references: [id_room])
+  room_lecture     room_lecture @relation(fields: [room_head], references: [id_lecture])
+}
+
+// Definisikan model lab_student
+model room_student {
+  id_student    Int      @id @default(autoincrement())
+  room_id       Int      @unique
+  name_student  String
+  nrp           Int
+  major         String
+  study_program String
+  created_at    DateTime @default(now())
+  room          room     @relation(fields: [room_id], references: [id_room])
+}
