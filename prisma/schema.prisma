@@ -21,6 +21,7 @@ model users {
 // Definisikan model User
 model record {
   id_record  Int      @id @default(autoincrement())
+  room_code  String
   created_at DateTime @default(now())
   updated_at DateTime @default(now())
 }

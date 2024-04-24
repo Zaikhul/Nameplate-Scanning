@@ -5,6 +5,7 @@ const roomRoute = require('./room.route')
 const roominformRoute = require('./room_inform.route')
 const roomlectureRoute = require('./room_lecture.route')
 const roomstudentRoute = require('./room_student.route')
+const recordRoute = require('./record.route')
 const morgan = require('morgan')
 
 router.use(morgan('dev'))
@@ -27,6 +28,7 @@ router.use('/room', roomRoute)
 router.use('/roominform', roominformRoute)
 router.use('/roomlecture', roomlectureRoute)
 router.use('/roomstudent', roomstudentRoute)
+router.use('/record', recordRoute)
 
 
 

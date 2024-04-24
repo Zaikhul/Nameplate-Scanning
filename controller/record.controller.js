@@ -11,22 +11,18 @@ function TestUser(req, res) {
 
 async function Insert(req, res) {
 
-    const { room_id, room_head, room_type, information_room, research_list } = req.body
+    const { room_code } = req.body
 
     const payload = {
-        room_id,
-        room_head,
-        room_type,
-        information_room,
-        research_list
+        room_code        
     }
 
     try {
-        const room_information = await prisma.room_information.create({
+        const record = await prisma.record.create({
             data: payload
         })
 
-        let resp = ResponseTemplate(room_information, 'success', null, 200)
+        let resp = ResponseTemplate(record, 'success', null, 200)
         res.json(resp)
         return
 
@@ -41,37 +37,26 @@ async function Insert(req, res) {
 
 async function Get(req, res) {
 
-    const { room_id, room_head, room_type, information_room, research_list } = req.query
+    const { room_code} = req.query
 
     const payload = {}
 
-    if (room_id) {
-        payload.room_id = room_id
+    if (room_code) {
+        payload.room_code = room_code
     }
-    if (room_head) {
-        payload.room_head = room_head
-    }   
-    if (room_type) {
-        payload.room_type = room_type
-    }
-    if (information_room) {
-        payload.information_room = information_room
-    }     
-    if (research_list) {
-        payload.research_list = research_list
-    }     
+       
 
     try {
         const page = parseInt(req.query.page) || 1; // Nomor halaman
         const perPage = parseInt(req.query.perPage) || 10; // Jumlah item per halaman
         const skip = (page - 1) * perPage;
-        const room_information = await prisma.room_information.findMany({
+        const record = await prisma.record.findMany({
             skip,
             take: perPage,
             where: payload,                        
         });
 
-        let resp = ResponseTemplate(room_information, 'success', null, 200)
+        let resp = ResponseTemplate(record, 'success', null, 200)
         res.json(resp)
         return
 
@@ -86,20 +71,16 @@ async function Get(req, res) {
 
 async function GetByPK(req, res) {
 
-    const { roomInformId } = req.params
+    const { recordId } = req.params
 
     try {
-        const room_information = await prisma.room_information.findUnique({
+        const record = await prisma.record.findUnique({
             where: {
-                id_inform: Number(roomInformId)
-            },
-            include: {
-                room: true,
-                room_lecture: true                
-            }            
+                id_record: Number(recordId)
+            }             
         })
 
-        let resp = ResponseTemplate(room_information, 'success', null, 200)
+        let resp = ResponseTemplate(record, 'success', null, 200)
         res.json(resp)
         return
 
@@ -114,43 +95,31 @@ async function GetByPK(req, res) {
 
 async function Update(req, res) {
 
-    const { room_id, room_head, room_type, information_room, research_list } = req.body
-    const { roomInformId } = req.params
+    const { room_code} = req.body
+    const { recordId } = req.params
 
     const payload = {}
 
-    if (!room_id && !room_head && !room_type && !information_room && !research_list) {
+    if (!room_code) {
         let resp = ResponseTemplate(null, 'bad request', null, 400)
         res.json(resp)
         return
     }
 
-    if (room_id) {
-        payload.room_id = room_id
+    if (room_code) {
+        payload.room_code = room_code
     }
-    if (room_head) {
-        payload.room_head = room_head
-    }   
-    if (room_type) {
-        payload.room_type = room_type
-    }
-    if (information_room) {
-        payload.information_room = information_room
-    }     
-    if (research_list) {
-        payload.research_list = research_list
-    }      
 
 
     try {
-        const room_information = await prisma.room_information.update({
+        const record = await prisma.record.update({
             where: {
-                id_inform: Number(roomInformId)
+                id_record: Number(recordId)
             },
             data: payload
         })
 
-        let resp = ResponseTemplate(room_information, 'success', null, 200)
+        let resp = ResponseTemplate(record, 'success', null, 200)
         res.json(resp)
         return
 
@@ -165,16 +134,16 @@ async function Update(req, res) {
 
 async function Delete(req, res) {
 
-    const { roomInformId } = req.params
+    const { recordId } = req.params
 
     try {
-        const room_information = await prisma.room_information.delete({
+        const record = await prisma.record.delete({
             where: {
-                id_inform: Number(roomInformId)
+                id_record: Number(recordId)
             },
         })
 
-        let resp = ResponseTemplate(room_information, 'success', null, 200)
+        let resp = ResponseTemplate(record, 'success', null, 200)
         res.json(resp)
         return
 

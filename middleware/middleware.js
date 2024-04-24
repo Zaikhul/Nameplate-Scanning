@@ -30,6 +30,22 @@ function CheckPostReq(req, res, next) {
     next()
 }
 
+function CheckPostRecord(req, res, next) {
+    const schema = Joi.object({
+        room_code: Joi.string().max(255).required(),                        
+    })
+
+    const { error } = schema.validate(req.body)
+    if (error) {
+        let respErr = ResponseTemplate(null, 'invalid request',
+            error.details[0].message, 400)
+        res.json(respErr)
+        return
+    }
+
+    next()
+}
+
 function CheckPostRoom(req, res, next) {
     const schema = Joi.object({
         room_code: Joi.string().max(255).required(),
@@ -114,5 +130,6 @@ module.exports = {
     CheckPostRoom,
     CheckPostRoomInform,
     CheckPostRoomLecture,
-    CheckPostRoomStudent    
+    CheckPostRoomStudent,
+    CheckPostRecord    
 }
