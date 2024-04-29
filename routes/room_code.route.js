@@ -1,0 +1,15 @@
+const express = require('express')
+const router = express.Router()
+const { Get, Insert, GetByPK, Update, Delete, GetRoomCode, GetRoomName, GetRoomNama, coba } = require('../controller/room.controller')
+const { CheckPostRoom } = require('../middleware/middleware')
+
+router.get('/', Get)
+//router.get('/:roomId', GetByPK)
+router.get('/:roomCode', GetRoomCode)
+//router.get('/:roomName', GetRoomName)
+//router.get('/:roomNama', GetRoomName)
+router.post('/', CheckPostRoom, Insert)
+router.put('/:roomId', Update)
+router.delete('/:roomId', Delete)
+router.get('/coba', coba)
+module.exports = router

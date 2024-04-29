@@ -94,8 +94,8 @@ async function GetByPK(req, res) {
                 id_inform: Number(roomInformId)
             },
             include: {
-                room: true,
-                room_lecture: true                
+                rooms: true,
+                room_lectures: true                
             }            
         })
 

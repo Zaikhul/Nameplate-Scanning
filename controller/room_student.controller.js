@@ -101,7 +101,7 @@ async function GetByPK(req, res) {
                 id_student: Number(roomstudentId)
             },
             include: {                
-                room: true                
+                rooms: true                
             }            
         })
 

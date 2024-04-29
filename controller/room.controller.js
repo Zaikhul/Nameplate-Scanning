@@ -88,7 +88,128 @@ async function GetByPK(req, res) {
         const room = await prisma.room.findUnique({
             where: {
                 id_room: Number(roomId)
+            },
+            include: {                
+                room_informations: true,                
+                room_students: true,                
+                room_lectures: true,                
             }             
+        })
+
+        let resp = ResponseTemplate(room, 'success', null, 200)
+        res.json(resp)
+        return
+
+    } catch (error) {
+        let resp = ResponseTemplate(null, 'internal server error', error, 500)
+        res.json(resp)
+        return
+
+
+    }
+}
+
+async function GetRoomCode(req, res) {
+
+    const { roomCode } = req.params
+
+    try {
+        const room = await prisma.room.findMany({
+            where: {
+                room_code: roomCode
+            },
+            include: {                
+                room_informations: true,                
+                room_students: true,                
+                room_lectures: true,                
+            }             
+        })
+
+        let resp = ResponseTemplate(room, 'success', null, 200)
+        res.json(resp)
+        return
+
+    } catch (error) {
+        let resp = ResponseTemplate(null, 'internal server error', error, 500)
+        res.json(resp)
+        return
+
+
+    }
+}
+
+async function GetRoomName(req, res) {
+
+    const { roomName } = req.params
+
+    try {
+        const room = await prisma.room.findMany({
+            where: {
+                room_name: roomName
+            },
+            include: {                
+                room_informations: true,                
+                room_students: true,                
+                room_lectures: true,                
+            }             
+        })
+
+        let resp = ResponseTemplate(room, 'success', null, 200)
+        res.json(resp)
+        return
+
+    } catch (error) {
+        let resp = ResponseTemplate(null, 'internal server error', error, 500)
+        res.json(resp)
+        return
+
+
+    }
+}
+
+async function GetRoomNama(req, res) {
+
+    const { roomNama } = req.params
+
+    try {
+        const room = await prisma.room.findMany({
+            where: {
+                nama_ruangan: roomNama
+            },
+            include: {                
+                room_informations: true,                
+                room_students: true,                
+                room_lectures: true,                
+            }             
+        })
+
+        let resp = ResponseTemplate(room, 'success', null, 200)
+        res.json(resp)
+        return
+
+    } catch (error) {
+        let resp = ResponseTemplate(null, 'internal server error', error, 500)
+        res.json(resp)
+        return
+
+
+    }
+}
+
+async function coba(req, res) {
+
+    //const { roomId } = req.params
+
+    try {
+        const room = await prisma.room.findMany({
+            where: {
+                room_code: "0705"
+            },
+            select: {
+                room_name: true,
+                position: true,                
+                nama_ruangan: true,
+            },             
         })
 
         let resp = ResponseTemplate(room, 'success', null, 200)
@@ -185,5 +306,9 @@ module.exports = {
     Get,
     GetByPK,
     Update,
-    Delete
+    Delete,
+    GetRoomCode,
+    GetRoomName,
+    GetRoomNama,
+    coba
 }
