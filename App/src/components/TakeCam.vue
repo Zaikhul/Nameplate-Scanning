@@ -33,7 +33,7 @@
 </template>
 
 <script>
-//import axios from 'axios';
+import axios from 'axios';
 export default {
   name: "TakeCam",
   data() {
@@ -71,17 +71,16 @@ export default {
       // simpan photo
       this.savePhoto();
     },
-    /*
+
     savePhoto() {
       const formData = new FormData();
       const canvas = this.$refs.canvas;
 
-      // canvas image ke Blob --> tambahkan ke form data
       canvas.toBlob(blob => {
         formData.append('photo', blob, 'photo.png');
 
         // axios untuk POST request ke server
-        axios.post('http://your-backend-url/api/upload', formData, {
+        axios.post('http://localhost:8000/ocr/', formData, {
           headers: {
             'Content-Type': 'multipart/form-data'
           }
@@ -95,7 +94,7 @@ export default {
             console.error('Error uploading image:', error);
           });
       }, 'image/png');
-    }, */
+    },
   },
 };
 </script>

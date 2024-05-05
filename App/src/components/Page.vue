@@ -32,7 +32,7 @@
 </template>
 
 <script>
-//import axios from 'axios';
+import axios from 'axios';
 
 export default {
   name: `page`,
@@ -46,7 +46,7 @@ export default {
       const file = event.target.files[0];
       this.imageData = URL.createObjectURL(file);
     },
-   /* submitForm() {
+   submitForm() {
       const formData = new FormData();
       const imageInput = this.$refs.image;
       
@@ -56,7 +56,7 @@ export default {
       });
 
       // Kirim form data ke server
-      axios.post('/api/upload', formData, {
+      axios.post('http://localhost:8000/ocr/', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         },
@@ -69,7 +69,7 @@ export default {
         // jika upload gagal
         console.error('Error uploading image:', error);
       });
-    }, */
+    },
   },
 };
 </script>
