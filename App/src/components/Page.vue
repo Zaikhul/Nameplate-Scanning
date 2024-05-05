@@ -1,3 +1,4 @@
+<!-- init -->
 <template>
   <div class="row">
     <div class="col">

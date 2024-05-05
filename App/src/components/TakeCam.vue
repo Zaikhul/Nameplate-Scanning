@@ -1,3 +1,4 @@
+<!-- init -->
 <template>
   <div class="d-flex h-100">
     <div class="justify-content-center align-self-center">
@@ -49,7 +50,7 @@ export default {
           this.$refs.video.srcObject = stream;
         })
         .catch((error) => {
-          console.error("Error starting video stream:", error);
+          this.$emit('error', "Error starting video stream: " + error);
         });
     },
     takePhoto() {
@@ -91,7 +92,7 @@ export default {
           })
           .catch(error => {
             // jika upload gagal
-            console.error('Error uploading image:', error);
+            this.$emit('error', "Error uploading image: " + error);
           });
       }, 'image/png');
     },

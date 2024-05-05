@@ -1,4 +1,4 @@
-# scanning-nameplate
+# scanning-nameplate #
 
 ## Project setup
 ```
