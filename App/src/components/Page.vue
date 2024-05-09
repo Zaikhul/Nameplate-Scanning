@@ -57,7 +57,7 @@ export default {
       });
 
       // Kirim form data ke server
-      axios.post('http://localhost:8000/ocr/', formData, {
+      axios.post('http://localhost:5000/', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         },
