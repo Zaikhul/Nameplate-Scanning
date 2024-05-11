@@ -1,4 +1,4 @@
-# app.py (backend)
+# app.py
 from flask import Flask
 from flask_socketio import SocketIO, emit
 from flask_cors import CORS
@@ -11,7 +11,6 @@ import io
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
-
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Function to preprocess the image
@@ -49,7 +48,6 @@ def handle_ocr_request(data):
         error_message = "Error during OCR: {}".format(e)
         print(error_message)
         emit('ocr_result', {'result': error_message})
-        return
 
 if __name__ == '__main__':
-    socketio.run(app)
+    socketio.run(app, host='0.0.0.0', port=5000)
