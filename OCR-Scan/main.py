@@ -1,87 +1,190 @@
+# # app.py
+# from flask import Flask
+# from flask_socketio import SocketIO, emit
+# from flask_cors import CORS
+# import cv2
+# import pytesseract
+# import numpy as np
+# from PIL import Image
+# import base64
+# import io
+
+# app = Flask(__name__)
+# CORS(app, resources={r"/*": {"origins": "*"}})
+# socketio = SocketIO(app, cors_allowed_origins="*")
+
+# # Function to preprocess the image
+# def preprocess_image(img):
+#     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+#     blur = cv2.GaussianBlur(gray, (5,5), 0)
+#     adaptive_thresh = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2)
+#     return adaptive_thresh
+
+# # Function to perform OCR on the image
+# def perform_ocr(image):
+#     preprocessed_img = preprocess_image(image)
+    
+#     # Perform OCR using Tesseract
+#     ocr_result = pytesseract.image_to_string(preprocessed_img)
+    
+#     return ocr_result
+
+# # Handling CORS manually for WebSocket
+# @socketio.on('ocr_request')
+# def handle_ocr_request(data):
+#     try:
+#         # Receiving image data from the client and decoding it
+#         image_data = data['image'].split(',')[1]
+#         image_bytes = base64.b64decode(image_data)
+#         image = Image.open(io.BytesIO(image_bytes))
+#         image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+
+#         # Perform OCR on the image
+#         ocr_result = perform_ocr(image)
+
+#         # Sending the OCR result back to the client
+#         emit('ocr_result', {'result': ocr_result})
+#     except Exception as e:
+#         error_message = "Error during OCR: {}".format(e)
+#         print(error_message)
+#         emit('ocr_result', {'result': error_message})
+
+# if __name__ == '__main__':
+#     socketio.run(app, host='0.0.0.0', port=5000)
+
+
+# ====================================================================
+# from flask import Flask, Response
+# from flask_socketio import SocketIO, emit
+# from flask_cors import CORS
+# import cv2
+# import numpy as np
+# from PIL import Image
+# import base64
+# import io
+# from paddleocr import PaddleOCR
+
+# app = Flask(__name__)
+# CORS(app, resources={r"/*": {"origins": "*"}})
+# socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
+
+# # Initialize PaddleOCR with adjusted parameters
+# ocr = PaddleOCR(
+#     use_angle_cls=False,  # Disable angle classification
+#     lang='en',
+#     det_db_thresh=0.5,  # Adjust threshold for detection
+#     rec_batch_num=1,  # Adjust batch size for recognition
+#     use_gpu=False,  # Ensure GPU is not used
+#     det_algorithm='DB',  # Using DB algorithm for detection
+#     rec_algorithm='CRNN'  # Using CRNN algorithm for recognition
+# )
+
+# # Function to preprocess the image
+# def preprocess_image(img):
+#     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+#     alpha = 2.0  # Contrast control
+#     beta = 50  # Brightness control
+#     adjusted = cv2.convertScaleAbs(gray, alpha=alpha, beta=beta)
+#     denoised = cv2.fastNlMeansDenoising(adjusted, None, 30, 7, 21)
+#     _, thresh = cv2.threshold(denoised, 180, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+#     return thresh
+
+# # Function to perform OCR on the image
+# def perform_ocr(image):
+#     try:
+#         preprocessed_img = preprocess_image(image)
+#         pil_image = Image.fromarray(preprocessed_img)
+#         result = ocr.ocr(np.array(pil_image), cls=False)  # Disable classification
+#         text_result = ' '.join([line[1][0] for line in result[0]])
+#         return text_result
+#     except Exception as e:
+#         print(f"Error during OCR: {e}")
+#         return "OCR Error"
+
+# # Handling CORS manually for WebSocket
+# @socketio.on('ocr_request')
+# def handle_ocr_request(data):
+#     try:
+#         image_data = data['image'].split(',')[1]
+#         image_bytes = base64.b64decode(image_data)
+#         image = Image.open(io.BytesIO(image_bytes))
+#         image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+
+#         ocr_result = perform_ocr(image)
+
+#         emit('ocr_result', {'result': ocr_result})
+#     except Exception as e:
+#         error_message = f"Error during OCR: {e}"
+#         print(error_message)
+#         emit('ocr_result', {'result': error_message})
+
+# if __name__ == '__main__':
+#     socketio.run(app, host='0.0.0.0', port=5000)
+
+
+from flask import Flask, Response
+from flask_socketio import SocketIO, emit
+from flask_cors import CORS
 import cv2
 import pytesseract
 import numpy as np
 from PIL import Image
-import time
+import base64
+import io
+import os
 
-cap = cv2.VideoCapture(0)
-cap.set(3, 640)
-cap.set(4, 480)
+app = Flask(__name__)
+CORS(app, resources={r"/*": {"origins": "*"}})
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 
-def captureScreen(bbox=(300, 300, 1500, 1000)):
-    capScr = np.array(Image.open(bbox))
-    capScr = cv2.cvtColor(capScr, cv2.COLOR_RGB2BGR)
-    return capScr
+# Set the TESSDATA_PREFIX environment variable
+os.environ['TESSDATA_PREFIX'] = '/usr/share/tesseract-ocr/4.00/tessdata'
 
+# Path to the Tesseract OCR engine
+pytesseract.pytesseract.tesseract_cmd = r'/usr/bin/tesseract'
+
+# Function to preprocess the image
 def preprocess_image(img):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    blur = cv2.GaussianBlur(gray, (5,5), 0)
-    adaptive_thresh = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2)
+    # Increase contrast and sharpness
+    alpha = 2.0  # Contrast control
+    beta = 50  # Brightness control
+    adjusted = cv2.convertScaleAbs(gray, alpha=alpha, beta=beta)
+
+    # Denoising
+    denoised = cv2.fastNlMeansDenoising(adjusted, None, 30, 7, 21)
+
+    # Thresholding
+    _, thresh = cv2.threshold(denoised, 180, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     
-    return adaptive_thresh
+    return thresh
 
-def check_accuracy(word, x, y, w, h, original_img):
-    roi = original_img[y:h, x:w]
-    if roi.size == 0:
-        return False
-    preprocessed_roi = preprocess_image(roi)
-    pred = pytesseract.image_to_string(preprocessed_roi, config='--psm 10 --oem 3')
- 
-    if pred.strip() == word:
-        return True
-    else:
-        return False
+# Function to perform OCR on the image
+def perform_ocr(image):
+    preprocessed_img = preprocess_image(image)
+    ocr_config = '--psm 7 --oem 3'  # Configure Tesseract for better nameplate recognition
+    ocr_result = pytesseract.image_to_string(preprocessed_img, config=ocr_config)
+    return ocr_result
 
-while True:
-    timer = cv2.getTickCount()
-    ret, img = cap.read()
-    if not ret:
-        print("Unable to capture video")
-        break
+# Handling CORS manually for WebSocket
+@socketio.on('ocr_request')
+def handle_ocr_request(data):
     try:
-        hImg, wImg, _ = img.shape
-    except AttributeError:
-        print("shape not found")
-        continue
-    
-    original_img = img.copy()
-    
-    # Preprocessing gambar
-    preprocessed_img = preprocess_image(img)
-    
-    boxes = pytesseract.image_to_boxes(preprocessed_img)
-    scanned_words = []  
-    current_word = ''  
-    current_word_correct_count = 0
-    current_word_total_count = 0
-    for b in boxes.splitlines():
-        b = b.split(' ')
-        x, y, w, h = int(b[1]), int(b[2]), int(b[3]), int(b[4])
-        word = b[0]  
-        scanned_words.append(word) 
-        # Deteksi tiap huruf
-        is_correct = check_accuracy(word, x, y, w, h, original_img)
-        if is_correct:
-            current_word += word
-            current_word_correct_count += 1
-        else:
-            if current_word:
-                current_word += ' '
-            current_word = word
-        current_word_total_count += 1
-        cv2.rectangle(img, (x, hImg - y), (w, hImg - h), (50, 50, 255), 2)
-        cv2.putText(img, word, (x, hImg - y + 25), cv2.FONT_HERSHEY_SIMPLEX, 1, (50, 50, 255), 2)
-    if current_word:
-        scanned_words.append(current_word)
-        word_accuracy = (current_word_correct_count / current_word_total_count) * 100
-        print(f"Akurasi kata '{current_word}': {word_accuracy:.2f}%")
-        
-        with open("scanned_text.txt", "w") as file:
-            file.write(" ".join(scanned_words))  
-        with open("scanned_text.txt", "r") as file:
-            content = file.read()
-            print("Kata-kata dan angka yang terdeteksi:", content)
-    
-    fps = cv2.getTickFrequency() / (cv2.getTickCount() - timer)
-    cv2.imshow("Result", img)
-    cv2.waitKey(1)
+        # Receiving image data from the client and decoding it
+        image_data = data['image'].split(',')[1]
+        image_bytes = base64.b64decode(image_data)
+        image = Image.open(io.BytesIO(image_bytes))
+        image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+
+        # Perform OCR on the image
+        ocr_result = perform_ocr(image)
+
+        # Sending the OCR result back to the client
+        emit('ocr_result', {'result': ocr_result})
+    except Exception as e:
+        error_message = "Error during OCR: {}".format(e)
+        print(error_message)
+        emit('ocr_result', {'result': error_message})
+
+if __name__ == '__main__':
+    socketio.run(app, host='0.0.0.0', port=5000)

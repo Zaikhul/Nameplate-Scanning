@@ -25,6 +25,12 @@
             <p><strong>Class Name Label:</strong> {{ ocrResult }}</p>
           </b-col>
         </b-row>
+
+        <b-row v-if="noValidText">
+          <b-col cols="12" class="ocr-no-text">
+            <p><strong>No valid text detected. Adjust the camera and try again.</strong></p>
+          </b-col>
+        </b-row>
       </b-container>
     </div>
   </div>
@@ -32,7 +38,6 @@
 
 <script>
 import io from 'socket.io-client';
-import { createWorker } from 'tesseract.js';
 
 export default {
   name: "TakeCam",
@@ -46,28 +51,39 @@ export default {
       imageCapture: null,
       cameraStarted: false,
       processing: false,
-      worker: null,
+      noValidText: false,
       socket: null,
     };
   },
-  async mounted() {
+  mounted() {
     this.socket = io('http://localhost:5000');
 
     this.socket.on('ocr_result', (data) => {
       console.log('OCR result:', data.result);
-      this.ocrResult = data.result;
       this.processing = false;
+      if (data.result === 'No valid text detected') {
+        this.noValidText = true;
+      } else {
+        this.ocrResult = data.result;
+        this.noValidText = false;
+        this.drawTextOnCanvas(data.result);
+      }
     });
 
     this.video = this.$refs.video;
     this.canvas = this.$refs.canvas;
     this.context = this.canvas.getContext("2d");
-
-    this.worker = await createWorker();
+  },
+  beforeDestroy() {
+    this.stopCamera();
+    if (this.socket) {
+      this.socket.disconnect();
+    }
   },
   methods: {
-    async startCamera() {
+    startCamera() {
       this.cameraStarted = true;
+      this.noValidText = false;
 
       const processFrame = async () => {
         if (!this.videoTrack || this.videoTrack.readyState === 'ended') {
@@ -75,32 +91,38 @@ export default {
           return;
         }
 
-        try {
-          const imageBitmap = await this.imageCapture.grabFrame();
-          this.canvas.width = imageBitmap.width;
-          this.canvas.height = imageBitmap.height;
-          this.context.drawImage(imageBitmap, 0, 0);
-          const photo = this.canvas.toDataURL("image/png");
+        if (this.socket && this.socket.connected) {
+          try {
+            const imageBitmap = await this.imageCapture.grabFrame();
+            this.canvas.width = imageBitmap.width;
+            this.canvas.height = imageBitmap.height;
+            this.context.drawImage(imageBitmap, 0, 0);
+            const photo = this.canvas.toDataURL("image/png");
 
-          this.processing = true;
-          this.socket.emit('ocr_request', { image: photo });
-        } catch (error) {
-          console.error('Error grabbing frame:', error);
-          this.stopCamera();
+            this.processing = true;
+            this.socket.emit('ocr_request', { image: photo });
+          } catch (error) {
+            console.error('Error grabbing frame:', error);
+            this.stopCamera();
+          }
+        } else {
+          console.warn('WebSocket is not connected.');
         }
+
         requestAnimationFrame(processFrame);
       };
 
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        this.video.srcObject = stream;
-        this.videoTrack = stream.getVideoTracks()[0];
-        this.imageCapture = new ImageCapture(this.videoTrack);
-        processFrame();
-      } catch (error) {
-        console.error("Error starting video stream:", error);
-        this.cameraStarted = false;
-      }
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then((stream) => {
+          this.video.srcObject = stream;
+          this.videoTrack = stream.getVideoTracks()[0];
+          this.imageCapture = new ImageCapture(this.videoTrack);
+          processFrame();
+        })
+        .catch((error) => {
+          console.error("Error starting video stream:", error);
+          this.cameraStarted = false;
+        });
     },
     stopCamera() {
       if (this.video.srcObject) {
@@ -108,11 +130,15 @@ export default {
       }
       this.cameraStarted = false;
     },
-    extractClassName(text) {
-      const regex = /Class: (.+)/;
-      const match = text.match(regex);
-      return match ? match[1] : "Not Found";
-    },
+    drawTextOnCanvas(text) {
+      this.context.clearRect(0, 0, this.canvas.width, this.canvas.height); // Clear previous text
+      this.context.font = "20px Arial";
+      this.context.fillStyle = "red";
+      const lines = text.split('\n');
+      for (let i = 0; i < lines.length; i++) {
+        this.context.fillText(lines[i], 10, 30 + i * 25);
+      }
+    }
   },
 };
 </script>
@@ -157,6 +183,13 @@ video {
   text-align: center;
   color: #28a745;
   font-size: 18px;
+  font-weight: bold;
+}
+
+.ocr-no-text {
+  text-align: center;
+  color: #dc3545;
+  font-size: 16px;
   font-weight: bold;
 }
 
