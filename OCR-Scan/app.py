@@ -1,4 +1,4 @@
-from flask import Flask, Response
+from flask import Flask
 from flask_socketio import SocketIO, emit
 from flask_cors import CORS
 import cv2
@@ -8,83 +8,77 @@ from PIL import Image
 import base64
 import io
 import os
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import logging
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
+logging.basicConfig(level=logging.INFO)
 
-# Set the TESSDATA_PREFIX environment variable
+# Set Tesseract environment variables
 os.environ['TESSDATA_PREFIX'] = '/usr/share/tesseract-ocr/4.00/tessdata'
-
-# Path to the Tesseract OCR engine
 pytesseract.pytesseract.tesseract_cmd = r'/usr/bin/tesseract'
+executor = ThreadPoolExecutor(max_workers=4)  # Limit to 4 workers for safety
 
-# Initialize ThreadPoolExecutor
-executor = ThreadPoolExecutor(max_workers=4)
-
-# Function to preprocess the image
 def preprocess_image(img):
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    alpha = 2.0  # Contrast control
-    beta = 50  # Brightness control
-    adjusted = cv2.convertScaleAbs(gray, alpha=alpha, beta=beta)
+    logging.info("Preprocessing image")
+    try:
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        adjusted = cv2.convertScaleAbs(gray, alpha=1.5, beta=50)
+        denoised = cv2.fastNlMeansDenoising(adjusted, None, 40, 7, 21)
+        thresh = cv2.adaptiveThreshold(denoised, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                                       cv2.THRESH_BINARY, 11, 2)
+        return thresh
+    except Exception as e:
+        logging.error(f"Error in image preprocessing: {e}")
+        raise
 
-    # Denoising
-    denoised = cv2.fastNlMeansDenoising(adjusted, None, 30, 7, 21)
-
-    # Thresholding
-    _, thresh = cv2.threshold(denoised, 180, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    
-    return thresh
-
-# Function to perform OCR on the image
 def perform_ocr(image):
-    preprocessed_img = preprocess_image(image)
-    ocr_config = '--psm 7 --oem 3'  # Configure Tesseract for better nameplate recognition
-    ocr_result = pytesseract.image_to_string(preprocessed_img, config=ocr_config)
-    return ocr_result
+    logging.info("Performing OCR")
+    try:
+        preprocessed_img = preprocess_image(image)
+        ocr_config = '--psm 7 --oem 3'
+        ocr_result = pytesseract.image_to_string(preprocessed_img, config=ocr_config)
+        data = pytesseract.image_to_data(preprocessed_img, config=ocr_config, output_type=pytesseract.Output.DICT)
+        return ocr_result.strip(), data
+    except Exception as e:
+        logging.error(f"Error during OCR: {e}")
+        raise
 
-# Function to validate if the result contains text
 def is_valid_text(text):
-    # Check if text contains alphanumeric characters
     return any(char.isalnum() for char in text)
 
-# Asynchronous OCR task
 def async_ocr_task(image_bytes):
     try:
         image = Image.open(io.BytesIO(image_bytes))
-        image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
-
-        # Perform OCR on the image
-        ocr_result = perform_ocr(image)
-
-        # Validate the OCR result
-        if is_valid_text(ocr_result):
-            return {'result': ocr_result}
-        else:
-            return {'result': 'No valid text detected'}
+        image = np.array(image)
+        if image.ndim == 2:  # grayscale
+            image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+        elif image.shape[2] == 4:  # RGBA
+            image = cv2.cvtColor(image, cv2.COLOR_RGBA2BGR)
+        ocr_result, ocr_data = perform_ocr(image)
+        boxes = []
+        for i in range(len(ocr_data['text'])):
+            if is_valid_text(ocr_data['text'][i]):
+                (x, y, w, h) = (ocr_data['left'][i], ocr_data['top'][i], ocr_data['width'][i], ocr_data['height'][i])
+                boxes.append((x, y, w, h))
+        return {'result': ocr_result if is_valid_text(ocr_result) else 'No valid text detected', 'boxes': boxes}
     except Exception as e:
-        error_message = f"Error during OCR: {e}"
-        print(error_message)
-        return {'result': error_message}
+        logging.error(f"Error during OCR task: {e}")
+        return {'result': 'Error processing image', 'boxes': []}
 
-# Handling CORS manually for WebSocket
 @socketio.on('ocr_request')
 def handle_ocr_request(data):
     try:
         image_data = data['image'].split(',')[1]
         image_bytes = base64.b64decode(image_data)
-
-        # Run OCR in a separate thread
         future = executor.submit(async_ocr_task, image_bytes)
         result = future.result()
-
         emit('ocr_result', result)
     except Exception as e:
-        error_message = f"Error during OCR: {e}"
-        print(error_message)
-        emit('ocr_result', {'result': error_message})
+        logging.error(f"Error handling OCR request: {e}")
+        emit('ocr_result', {'result': str(e), 'boxes': []})
 
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=5000)
