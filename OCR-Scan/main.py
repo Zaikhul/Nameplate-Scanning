@@ -168,7 +168,7 @@ def preprocess_image(img):
     height, width = img.shape[:2]
     if max(height, width) > max_dimension:
         scaling_factor = max_dimension / float(max(height, width))
-        image = cv2.resize(image, (int(width * scaling_factor), int(height * scaling_factor)))
+        image = cv2.resize(img, (int(width * scaling_factor), int(height * scaling_factor)))
     
     rgb2gray_kernel = np.array([[0.2989, 0.5870, 0.1140]])
     gray_image = convolve_image(image, rgb2gray_kernel)
