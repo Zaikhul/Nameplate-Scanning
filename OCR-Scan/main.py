@@ -143,9 +143,36 @@ os.environ['TESSDATA_PREFIX'] = '/usr/share/tesseract-ocr/4.00/tessdata'
 # Path to the Tesseract OCR engine
 pytesseract.pytesseract.tesseract_cmd = r'/usr/bin/tesseract'
 
+# Function convolution matriks
+def convolve_image(image, kernel):
+    (iH, iW) = image.shape[:2]
+    (kH, kW) = kernel.shape[:2]
+    pad = (kW - 1) // 2
+    image = cv2.copyMakeBorder(image, pad, pad, pad, pad, cv2.BORDER_REPLICATE)
+    output = np.zeros((iH, iW), dtype="float32")
+    
+    for y in range(pad, iH + pad):
+        for x in range(pad, iW + pad):
+            roi = image[y - pad:y + pad + 1, x - pad:x + pad + 1]
+            k = (roi * kernel).sum()
+            output[y - pad, x - pad] = k
+
+    output = cv2.normalize(output, None, 0, 255, cv2.NORM_MINMAX)
+    output = np.uint8(output)
+    
+    return output
+
 # Function to preprocess the image
 def preprocess_image(img):
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    max_dimension = 1024
+    height, width = img.shape[:2]
+    if max(height, width) > max_dimension:
+        scaling_factor = max_dimension / float(max(height, width))
+        image = cv2.resize(image, (int(width * scaling_factor), int(height * scaling_factor)))
+    
+    rgb2gray_kernel = np.array([[0.2989, 0.5870, 0.1140]])
+    gray_image = convolve_image(image, rgb2gray_kernel)
+    gray = cv2.cvtColor(gray_image, cv2.COLOR_BGR2GRAY)
     # Increase contrast and sharpness
     alpha = 2.0  # Contrast control
     beta = 50  # Brightness control
