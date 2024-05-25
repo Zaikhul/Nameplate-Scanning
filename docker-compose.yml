@@ -1,0 +1,22 @@
+version: '3'
+
+services:
+  frontend:
+    build:
+      context: ./App
+    ports:
+      - "8080:8080"
+
+  ocr_backend:
+    build:
+      context: ./OCR-Scan
+    ports:
+      - "5000:5000"
+
+  api_backend:
+    build:
+      context: .
+    ports:
+      - "3000:3000"
+    depends_on:
+      - ocr_backend
