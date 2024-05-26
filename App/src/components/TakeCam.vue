@@ -11,20 +11,21 @@
           <video ref="video" width="440" height="280" autoplay class="border border-danger rounded mb-2"></video>
           <b-button @click="startCamera" variant="primary" class="mb-1 w-100" :disabled="cameraStarted">Start Camera</b-button>
           <b-button @click="stopCamera" variant="danger" class="mb-1 w-100" :disabled="!cameraStarted">Stop Camera</b-button>
+          <b-button @click="captureImage" variant="success" class="mb-1 w-100" :disabled="!cameraStarted">Capture Image</b-button>
         </div>
       </div>
-
       <div v-if="processing" class="text-center">
         <p><strong>Processing...</strong></p>
         <b-progress :value="progress" max="100"></b-progress>
       </div>
-
       <div v-if="ocrResult" class="text-center mt-3">
         <p><strong>Class Name Label:</strong> {{ ocrResult }}</p>
       </div>
-
       <div v-if="noValidText" class="text-center mt-3">
         <p class="text-danger"><strong>No valid text detected. Adjust the camera and try again.</strong></p>
+      </div>
+      <div v-if="errorMessage" class="text-center mt-3">
+        <p class="text-danger"><strong>{{ errorMessage }}</strong></p>
       </div>
     </div>
   </div>
@@ -49,102 +50,50 @@ export default {
       processing: false,
       progress: 0,
       noValidText: false,
-      socket: null,
+      errorMessage: '',
+      socket: null
     };
   },
   mounted() {
     this.socket = io('http://localhost:5000');
     this.socket.on('ocr_result', (data) => {
-      this.ocrResultHandler(data);
+      this.processing = false;
+      this.ocrResult = data.result;
+      this.noValidText = data.result === 'No valid text detected';
+      this.errorMessage = data.result !== 'No valid text detected' && !data.result ? 'Error processing image' : '';
     });
-
-    this.video = this.$refs.video;
-    this.canvas = this.$refs.canvas;
-    this.context = this.canvas.getContext("2d");
-    this.overlay = this.$refs.overlay;
-    this.overlayContext = this.overlay.getContext("2d");
-  },
-  beforeDestroy() {
-    this.stopCamera();
-    if (this.socket) {
-      this.socket.disconnect();
-    }
   },
   methods: {
     startCamera() {
       navigator.mediaDevices.getUserMedia({ video: true })
-        .then((stream) => {
+        .then(stream => {
+          this.video = this.$refs.video;
           this.video.srcObject = stream;
           this.videoTrack = stream.getVideoTracks()[0];
-          this.imageCapture = new ImageCapture(this.videoTrack);
+          this.canvas = this.$refs.canvas;
+          this.context = this.canvas.getContext('2d');
+          this.overlay = this.$refs.overlay;
+          this.overlayContext = this.overlay.getContext('2d');
           this.cameraStarted = true;
-          this.processFrame();
         })
-        .catch((error) => {
-          console.error("Error starting video stream:", error);
-          this.cameraStarted = false;
+        .catch(err => {
+          console.error("Error starting camera: ", err);
         });
     },
     stopCamera() {
-      if (this.video.srcObject) {
-        this.video.srcObject.getTracks().forEach(track => track.stop());
-      }
+      this.videoTrack.stop();
       this.cameraStarted = false;
     },
-    processFrame() {
-      if (!this.videoTrack || this.videoTrack.readyState === 'ended') {
-        this.stopCamera();
-        return;
-      }
-
-      this.imageCapture.grabFrame()
-        .then(imageBitmap => {
-          this.context.drawImage(imageBitmap, 0, 0, this.canvas.width, this.canvas.height);
-          const photo = this.canvas.toDataURL("image/png");
-          this.socket.emit('ocr_request', { image: photo });
-          this.processing = true;
-          this.updateProgress();
-          requestAnimationFrame(() => this.processFrame());
-        })
-        .catch(error => {
-          console.error('Error grabbing frame:', error);
-          this.stopCamera();
-        });
+    captureImage() {
+      this.context.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
+      const imageData = this.canvas.toDataURL('image/png');
+      this.sendToServer(imageData);
     },
-    updateProgress() {
-      this.progress = (this.progress + 10) % 100; // Simulate progress update
-    },
-    ocrResultHandler(data) {
-      console.log('OCR result:', data.result);
-      this.processing = false;
-      this.progress = 0;
-      this.overlayContext.clearRect(0, 0, this.overlay.width, this.overlay.height);
-      if (data.result === 'No valid text detected') {
-        this.noValidText = true;
-      } else {
-        this.ocrResult = data.result;
-        this.noValidText = false;
-        this.drawTextOnCanvas(data.result);
-        this.drawBoundingBoxes(data.boxes);
-      }
-    },
-    drawTextOnCanvas(text) {
-      this.context.clearRect(0, 0, this.canvas.width, this.canvas.height); // Clear previous text
-      this.context.font = "20px Arial";
-      this.context.fillStyle = "red";
-      const lines = text.split('\n');
-      for (let i = 0; i < lines.length; i++) {
-        this.context.fillText(lines[i], 10, 30 + i * 25);
-      }
-    },
-    drawBoundingBoxes(boxes) {
-      this.overlayContext.strokeStyle = 'red';
-      this.overlayContext.lineWidth = 2;
-      boxes.forEach(box => {
-        this.overlayContext.strokeRect(box[0], box[1], box[2], box[3]);
-      });
+    sendToServer(imageData) {
+      this.processing = true;
+      this.socket.emit('ocr_request', { image: imageData });
     }
-  },
+  }
 };
 </script>
 
