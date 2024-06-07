@@ -25,6 +25,10 @@
         <li class="nav-item">
           <router-link class="nav-link" to="/nameplate">Nameplate</router-link>
         </li>
+        
+        <li class="nav-item">
+          <router-link class="nav-link" to="/upload">Upload</router-link>
+        </li>
       </ul>
     </div></div>
   </nav>

@@ -1,31 +1,40 @@
-version: '3.8'
+version: "3.8"
+
 services:
-  web:
+  nginx:
+    image: nginx:stable-alpine
+    container_name: nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - frontend
+      - backend-flask
+      - backend-express
+    networks:
+      - app-network
+
+  frontend:
     build:
       context: ./App
       dockerfile: Dockerfile
-    ports:
-      - "8080:8080"
     networks:
       - app-network
 
-  ocr:
+  backend-flask:
     build:
       context: ./OCR-Scan
       dockerfile: Dockerfile
-    ports:
-      - "5000:5000"
     networks:
       - app-network
 
-#  backend:
-#    build:
-#      context: .
-#      dockerfile: Dockerfile
-#    ports:
-#      - "3000:3000"
-#    networks:
-#      - app-network
+  backend-express:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    networks:
+      - app-network
 
 networks:
   app-network:
